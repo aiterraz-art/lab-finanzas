@@ -19,6 +19,7 @@ export default function BankReconciliation() {
     const [filter, setFilter] = useState("all");
     const [selectedTxn, setSelectedTxn] = useState<any>(null);
     const [suggestedInvoices, setSuggestedInvoices] = useState<any[]>([]);
+    const [suggestedRendiciones, setSuggestedRendiciones] = useState<any[]>([]);
     const [manualSearch, setManualSearch] = useState("");
     const [isMatching, setIsMatching] = useState(false);
     const [manualInvoices, setManualInvoices] = useState<any[]>([]);
@@ -50,6 +51,7 @@ export default function BankReconciliation() {
     const fetchSuggestions = async (txn: any) => {
         setSelectedTxn(txn);
         setSuggestedInvoices([]);
+        setSuggestedRendiciones([]);
         setManualInvoices([]);
         setManualSearch("");
         setOtherConceptReason("");
@@ -93,27 +95,25 @@ export default function BankReconciliation() {
                 if (!error) rendData = data?.map(r => ({ ...r, tipo_entidad: 'rendicion', monto: r.monto_total })) || [];
             }
 
-            // Combinar y marcar los calces exactos
-            const combined = [
-                ...(invData?.map(i => ({
-                    ...i,
-                    tipo_entidad: 'factura',
-                    es_calce_exacto: i.monto === absMonto
-                })) || []),
-                ...rendData.map(r => ({
-                    ...r,
-                    es_calce_exacto: r.monto === absMonto
-                }))
-            ];
-
-            // Ordenar: calces exactos primero
-            combined.sort((a, b) => {
+            // 3. Process Invoices
+            const invoices = (invData?.map(i => ({
+                ...i,
+                tipo_entidad: 'factura',
+                es_calce_exacto: i.monto === absMonto
+            })) || []).sort((a, b) => {
                 if (a.es_calce_exacto && !b.es_calce_exacto) return -1;
                 if (!a.es_calce_exacto && b.es_calce_exacto) return 1;
                 return 0;
             });
 
-            setSuggestedInvoices(combined);
+            // 4. Process Rendiciones
+            const renditions = rendData.map(r => ({
+                ...r,
+                es_calce_exacto: r.monto === absMonto
+            }));
+
+            setSuggestedInvoices(invoices);
+            setSuggestedRendiciones(renditions);
         } catch (error) {
             console.error("Error fetching suggestions:", error);
         }
@@ -213,6 +213,7 @@ export default function BankReconciliation() {
             alert("Conciliación por otros conceptos exitosa.");
             setSelectedTxn(null);
             setSuggestedInvoices([]);
+            setSuggestedRendiciones([]);
             setOtherConceptReason("");
             fetchData();
         } catch (error: any) {
@@ -237,6 +238,7 @@ export default function BankReconciliation() {
             alert("Conciliación manual exitosa.");
             setSelectedTxn(null);
             setSuggestedInvoices([]);
+            setSuggestedRendiciones([]);
             fetchData();
         } catch (error: any) {
             alert(`Error al conciliar: ${error.message}`);
@@ -285,6 +287,7 @@ export default function BankReconciliation() {
             alert("Conciliación exitosa.");
             setSelectedTxn(null);
             setSuggestedInvoices([]);
+            setSuggestedRendiciones([]);
             fetchData();
         } catch (error: any) {
             alert(`Error al conciliar: ${error.message}`);
@@ -636,6 +639,35 @@ export default function BankReconciliation() {
                                                     ))}
                                                 </div>
                                             )}
+
+                                            <div className="space-y-2 mb-4 pt-2 border-t">
+                                                <p className="text-[10px] font-bold text-muted-foreground uppercase">Rendiciones Disponibles:</p>
+                                                {suggestedRendiciones.length > 0 ? (
+                                                    <div className="space-y-2">
+                                                        {suggestedRendiciones.map((doc) => (
+                                                            <div key={doc.id} className="border rounded-lg p-3 bg-white shadow-sm border-orange-100 transition-colors hover:bg-orange-50">
+                                                                <div className="flex justify-between items-center mb-1">
+                                                                    <span className="font-bold text-xs">Rendición</span>
+                                                                    <span className="font-bold text-orange-600 text-xs">{formatCurrency(doc.monto)}</span>
+                                                                </div>
+                                                                <p className="text-[11px] text-slate-900 font-semibold mb-2">{doc.terceros?.razon_social || 'Desconocido'}</p>
+                                                                <Button
+                                                                    size="sm"
+                                                                    className="w-full bg-orange-600 hover:bg-orange-700 h-7 text-[10px]"
+                                                                    onClick={() => handleConfirmMatch(doc)}
+                                                                    disabled={isMatching}
+                                                                >
+                                                                    {isMatching ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Check className="w-3 h-3 mr-1" /> Vincular Rendición</>}
+                                                                </Button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <div className="p-3 bg-slate-50 border border-dashed rounded-lg text-center">
+                                                        <p className="text-[10px] text-muted-foreground italic">No hay rendiciones pendientes para este monto.</p>
+                                                    </div>
+                                                )}
+                                            </div>
 
                                             <div className="space-y-2 mb-4 pt-2 border-t">
                                                 <p className="text-[10px] font-bold text-muted-foreground uppercase">Conciliación Directa:</p>
