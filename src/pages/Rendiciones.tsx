@@ -218,9 +218,10 @@ export default function Rendiciones() {
             setIsCreateOpen(false);
             resetForm();
             fetchRendiciones();
-        } catch (error) {
+            fetchRendiciones();
+        } catch (error: any) {
             console.error("Error saving rendicion:", error);
-            alert("Error al guardar la rendición.");
+            alert(`Error al guardar la rendición: ${error.message || error.details || JSON.stringify(error)}`);
         } finally {
             setIsSubmitting(false);
         }
