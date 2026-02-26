@@ -22,21 +22,43 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        let isMounted = true;
+        const loadingTimeout = setTimeout(() => {
+            if (isMounted) {
+                setLoading(false);
+            }
+        }, 7000);
+
         // Obtenemos la sesión inicial
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setSession(session);
-            setUser(session?.user ?? null);
-            setLoading(false);
-        });
+        supabase.auth.getSession()
+            .then(({ data: { session } }) => {
+                if (!isMounted) return;
+                setSession(session);
+                setUser(session?.user ?? null);
+                setLoading(false);
+            })
+            .catch((error) => {
+                console.error("Error getting initial session:", error);
+                if (isMounted) {
+                    setSession(null);
+                    setUser(null);
+                    setLoading(false);
+                }
+            });
 
         // Escuchamos cambios en la autenticación
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (!isMounted) return;
             setSession(session);
             setUser(session?.user ?? null);
             setLoading(false);
         });
 
-        return () => subscription.unsubscribe();
+        return () => {
+            isMounted = false;
+            clearTimeout(loadingTimeout);
+            subscription.unsubscribe();
+        };
     }, []);
 
     const signOut = async () => {
