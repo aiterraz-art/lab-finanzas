@@ -12,8 +12,10 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
+import { useCompany } from "@/contexts/CompanyContext";
 
 export default function BankReconciliation() {
+    const { selectedEmpresaId } = useCompany();
     const [transactions, setTransactions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState("all");
@@ -28,10 +30,11 @@ export default function BankReconciliation() {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        fetchData();
-    }, []);
+        if (selectedEmpresaId) fetchData();
+    }, [selectedEmpresaId]);
 
     const fetchData = async () => {
+        if (!selectedEmpresaId) return;
         setLoading(true);
         try {
             const { data: txns, error: txnsError } = await supabase
@@ -50,6 +53,7 @@ export default function BankReconciliation() {
                         )
                     )
                 `)
+                .eq('empresa_id', selectedEmpresaId)
                 .order('fecha_movimiento', { ascending: false });
 
             if (txnsError) throw txnsError;
@@ -73,6 +77,7 @@ export default function BankReconciliation() {
     // First, update fetchData.
 
     const fetchSuggestions = async (txn: any) => {
+        if (!selectedEmpresaId) return;
         setSelectedTxn(txn);
         setSuggestedInvoices([]);
         setSuggestedRendiciones([]);
@@ -89,6 +94,7 @@ export default function BankReconciliation() {
                 const { data, error } = await supabase
                     .from('facturas')
                     .select('*, terceros(razon_social)')
+                    .eq('empresa_id', selectedEmpresaId)
                     .eq('estado', 'pendiente')
                     .eq('tipo', 'compra')
                     .order('fecha_emision', { ascending: false });
@@ -100,6 +106,7 @@ export default function BankReconciliation() {
                 const { data, error } = await supabase
                     .from('facturas')
                     .select('*, terceros(razon_social)')
+                    .eq('empresa_id', selectedEmpresaId)
                     .eq('estado', 'pendiente')
                     .eq('tipo', 'venta')
                     .order('fecha_emision', { ascending: false });
@@ -114,6 +121,7 @@ export default function BankReconciliation() {
                 const { data, error } = await supabase
                     .from('rendiciones')
                     .select('*, terceros(razon_social)')
+                    .eq('empresa_id', selectedEmpresaId)
                     .eq('estado', 'pendiente')
                     .order('created_at', { ascending: false });
                 if (!error) rendData = data?.map(r => ({ ...r, tipo_entidad: 'rendicion', monto: r.monto_total })) || [];
@@ -144,7 +152,7 @@ export default function BankReconciliation() {
     };
 
     const handleManualSearch = async () => {
-        if (!manualSearch || !selectedTxn) return;
+        if (!manualSearch || !selectedTxn || !selectedEmpresaId) return;
 
         try {
             const tipoDocs = selectedTxn.monto > 0 ? 'venta' : 'compra';
@@ -153,6 +161,7 @@ export default function BankReconciliation() {
             const { data: invData, error: invError } = await supabase
                 .from('facturas')
                 .select('*, terceros(razon_social)')
+                .eq('empresa_id', selectedEmpresaId)
                 .eq('estado', 'pendiente')
                 .eq('tipo', tipoDocs)
                 .or(`numero_documento.ilike.%${manualSearch}%,tercero_nombre.ilike.%${manualSearch}%`);
@@ -165,6 +174,7 @@ export default function BankReconciliation() {
                 const { data, error } = await supabase
                     .from('rendiciones')
                     .select('*, terceros(razon_social)')
+                    .eq('empresa_id', selectedEmpresaId)
                     .eq('estado', 'pendiente')
                     .or(`descripcion.ilike.%${manualSearch}%,tercero_nombre.ilike.%${manualSearch}%`);
                 if (!error) rendData = data?.map(r => ({ ...r, tipo_entidad: 'rendicion', monto: r.monto_total })) || [];
@@ -202,13 +212,15 @@ export default function BankReconciliation() {
     };
 
     const handleDeleteMovimiento = async (id: string) => {
+        if (!selectedEmpresaId) return;
         if (!confirm("¿Estás seguro de que deseas eliminar este movimiento?")) return;
 
         try {
             const { error } = await supabase
                 .from('movimientos_banco')
                 .delete()
-                .eq('id', id);
+                .eq('id', id)
+                .eq('empresa_id', selectedEmpresaId);
 
             if (error) throw error;
 
@@ -223,7 +235,7 @@ export default function BankReconciliation() {
 
 
     const handleOtherConceptReconciliation = async () => {
-        if (!selectedTxn || !otherConceptReason.trim()) return;
+        if (!selectedTxn || !otherConceptReason.trim() || !selectedEmpresaId) return;
         setIsMatching(true);
         try {
             await supabase
@@ -232,7 +244,8 @@ export default function BankReconciliation() {
                     estado: 'conciliado',
                     descripcion: `${selectedTxn.descripcion} [Otros: ${otherConceptReason}]`
                 })
-                .eq('id', selectedTxn.id);
+                .eq('id', selectedTxn.id)
+                .eq('empresa_id', selectedEmpresaId);
 
             alert("Conciliación por otros conceptos exitosa.");
             setSelectedTxn(null);
@@ -248,7 +261,7 @@ export default function BankReconciliation() {
     };
 
     const handleDirectReconciliation = async (_type: string, label: string) => {
-        if (!selectedTxn) return;
+        if (!selectedTxn || !selectedEmpresaId) return;
         setIsMatching(true);
         try {
             await supabase
@@ -257,7 +270,8 @@ export default function BankReconciliation() {
                     estado: 'conciliado',
                     descripcion: `${selectedTxn.descripcion} [${label}]`
                 })
-                .eq('id', selectedTxn.id);
+                .eq('id', selectedTxn.id)
+                .eq('empresa_id', selectedEmpresaId);
 
             alert("Conciliación manual exitosa.");
             setSelectedTxn(null);
@@ -272,7 +286,7 @@ export default function BankReconciliation() {
     };
 
     const handleConfirmMatch = async (item: any) => {
-        if (!selectedTxn) return;
+        if (!selectedTxn || !selectedEmpresaId) return;
         setIsMatching(true);
         try {
             const isRendicion = item.tipo_entidad === 'rendicion';
@@ -281,6 +295,7 @@ export default function BankReconciliation() {
             const { error: matchError } = await supabase
                 .from('facturas_pagos')
                 .insert([{
+                    empresa_id: selectedEmpresaId,
                     factura_id: isRendicion ? null : item.id,
                     rendicion_id: isRendicion ? item.id : null,
                     movimiento_banco_id: selectedTxn.id,
@@ -294,19 +309,22 @@ export default function BankReconciliation() {
                 await supabase
                     .from('rendiciones')
                     .update({ estado: 'pagado' })
-                    .eq('id', item.id);
+                    .eq('id', item.id)
+                    .eq('empresa_id', selectedEmpresaId);
             } else {
                 await supabase
                     .from('facturas')
                     .update({ estado: 'pagada' })
-                    .eq('id', item.id);
+                    .eq('id', item.id)
+                    .eq('empresa_id', selectedEmpresaId);
             }
 
             // 3. Marcar el movimiento de banco como conciliado
             await supabase
                 .from('movimientos_banco')
                 .update({ estado: 'conciliado' })
-                .eq('id', selectedTxn.id);
+                .eq('id', selectedTxn.id)
+                .eq('empresa_id', selectedEmpresaId);
 
             alert("Conciliación exitosa.");
             setSelectedTxn(null);
@@ -321,13 +339,15 @@ export default function BankReconciliation() {
     };
 
     const handleUndoReconciliation = async (txn: any) => {
+        if (!selectedEmpresaId) return;
         if (!confirm("¿Deseas deshacer esta conciliación?")) return;
         setIsMatching(true);
         try {
             const { data: links, error: linkError } = await supabase
                 .from('facturas_pagos')
                 .select('id, factura_id, rendicion_id')
-                .eq('movimiento_banco_id', txn.id);
+                .eq('movimiento_banco_id', txn.id)
+                .eq('empresa_id', selectedEmpresaId);
 
             if (linkError) throw linkError;
 
@@ -338,6 +358,7 @@ export default function BankReconciliation() {
                 const { error } = await supabase
                     .from('facturas')
                     .update({ estado: 'pendiente' })
+                    .eq('empresa_id', selectedEmpresaId)
                     .in('id', facturaIds);
                 if (error) throw error;
             }
@@ -346,6 +367,7 @@ export default function BankReconciliation() {
                 const { error } = await supabase
                     .from('rendiciones')
                     .update({ estado: 'pendiente' })
+                    .eq('empresa_id', selectedEmpresaId)
                     .in('id', rendicionIds);
                 if (error) throw error;
             }
@@ -354,14 +376,16 @@ export default function BankReconciliation() {
                 const { error } = await supabase
                     .from('facturas_pagos')
                     .delete()
-                    .eq('movimiento_banco_id', txn.id);
+                    .eq('movimiento_banco_id', txn.id)
+                    .eq('empresa_id', selectedEmpresaId);
                 if (error) throw error;
             }
 
             const { error: updateTxnError } = await supabase
                 .from('movimientos_banco')
                 .update({ estado: 'no_conciliado' })
-                .eq('id', txn.id);
+                .eq('id', txn.id)
+                .eq('empresa_id', selectedEmpresaId);
             if (updateTxnError) throw updateTxnError;
 
             alert("Conciliación deshecha correctamente.");
@@ -374,6 +398,7 @@ export default function BankReconciliation() {
     };
 
     const handleImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (!selectedEmpresaId) return;
         const file = event.target.files?.[0];
         if (!file) return;
 
@@ -507,6 +532,7 @@ export default function BankReconciliation() {
                     const { data: existing } = await supabase
                         .from('movimientos_banco')
                         .select('n_operacion')
+                        .eq('empresa_id', selectedEmpresaId)
                         .in('n_operacion', nOperaciones);
 
                     existingNOperaciones = (existing || []).map(e => e.n_operacion);
@@ -520,7 +546,7 @@ export default function BankReconciliation() {
                     // (que suelen ser los más recientes) se inserten al final y tengan el id_secuencial más alto.
                     const { error: insertError } = await supabase
                         .from('movimientos_banco')
-                        .insert([...toInsert].reverse());
+                        .insert([...toInsert].reverse().map((m) => ({ ...m, empresa_id: selectedEmpresaId })));
 
                     if (insertError) throw insertError;
 

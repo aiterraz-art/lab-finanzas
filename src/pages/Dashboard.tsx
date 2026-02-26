@@ -4,8 +4,10 @@ import { Button } from "@/components/ui/button";
 import { ArrowUpRight, ArrowDownRight, Plus, Download, ArrowRight, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import { useCompany } from "@/contexts/CompanyContext";
 
 export default function Dashboard() {
+    const { selectedEmpresaId } = useCompany();
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({
         receivables: 0,
@@ -19,10 +21,13 @@ export default function Dashboard() {
     const [recentMovements, setRecentMovements] = useState<any[]>([]);
 
     useEffect(() => {
-        fetchDashboardData();
-    }, []);
+        if (selectedEmpresaId) {
+            fetchDashboardData();
+        }
+    }, [selectedEmpresaId]);
 
     const fetchDashboardData = async () => {
+        if (!selectedEmpresaId) return;
         setLoading(true);
         try {
             const now = new Date();
@@ -32,6 +37,7 @@ export default function Dashboard() {
             const { data: invData } = await supabase
                 .from('facturas')
                 .select('*')
+                .eq('empresa_id', selectedEmpresaId)
                 .eq('tipo', 'venta')
                 .eq('estado', 'pendiente')
                 .order('fecha_emision', { ascending: true })
@@ -40,6 +46,7 @@ export default function Dashboard() {
             const { data: allPending } = await supabase
                 .from('facturas')
                 .select('monto')
+                .eq('empresa_id', selectedEmpresaId)
                 .eq('tipo', 'venta')
                 .eq('estado', 'pendiente');
 
@@ -47,6 +54,7 @@ export default function Dashboard() {
             const { data: monthlyData } = await supabase
                 .from('facturas')
                 .select('monto')
+                .eq('empresa_id', selectedEmpresaId)
                 .eq('tipo', 'venta')
                 .eq('estado', 'pagada')
                 .gte('created_at', firstDayOfMonth);
@@ -55,6 +63,7 @@ export default function Dashboard() {
             const { data: bankData } = await supabase
                 .from('movimientos_banco')
                 .select('*')
+                .eq('empresa_id', selectedEmpresaId)
                 .order('id_secuencial', { ascending: false })
                 .limit(5);
 
@@ -62,6 +71,7 @@ export default function Dashboard() {
             const { data: latestMov } = await supabase
                 .from('movimientos_banco')
                 .select('saldo')
+                .eq('empresa_id', selectedEmpresaId)
                 .order('id_secuencial', { ascending: false })
                 .limit(1)
                 .single();
@@ -74,6 +84,7 @@ export default function Dashboard() {
                     monto,
                     facturas_pagos!left(id)
                 `)
+                .eq('empresa_id', selectedEmpresaId)
                 .eq('tipo', 'compra')
                 .eq('estado', 'pendiente')
                 .is('facturas_pagos.id', null);
@@ -306,4 +317,3 @@ export default function Dashboard() {
 function cn(...classes: any[]) {
     return classes.filter(Boolean).join(' ');
 }
-

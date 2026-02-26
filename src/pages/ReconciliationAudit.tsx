@@ -4,32 +4,36 @@ import { supabase } from "@/lib/supabase";
 import { ShieldCheck, AlertCircle, FileWarning, CheckCircle2, Loader2, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { useCompany } from "@/contexts/CompanyContext";
 
 export default function ReconciliationAudit() {
+    const { selectedEmpresaId } = useCompany();
     const [loading, setLoading] = useState(true);
     const [unmatchedMovements, setUnmatchedMovements] = useState<any[]>([]);
     const [unpaidInvoices, setUnpaidInvoices] = useState<any[]>([]);
     const [stats, setStats] = useState({ healthScore: 100, pendingAmount: 0 });
 
     useEffect(() => {
-        fetchAudit();
-    }, []);
+        if (selectedEmpresaId) fetchAudit();
+    }, [selectedEmpresaId]);
 
     const fetchAudit = async () => {
+        if (!selectedEmpresaId) return;
         setLoading(true);
         try {
             // 1. Movimientos de banco NO conciliados
             const { data: movements } = await supabase
                 .from('movimientos_banco')
                 .select('*')
+                .eq('empresa_id', selectedEmpresaId)
                 .eq('estado', 'no_conciliado')
                 .order('fecha_movimiento', { ascending: false });
             setUnmatchedMovements(movements || []);
 
             // 2. Facturas (Venta) pagadas pero sin relación en facturas_pagos
             // Detectamos inconsistencias de integridad localmente
-            const { data: paidInv } = await supabase.from('facturas').select('id, monto, tercero_nombre').eq('estado', 'pagada');
-            const { data: rels } = await supabase.from('facturas_pagos').select('factura_id');
+            const { data: paidInv } = await supabase.from('facturas').select('id, monto, tercero_nombre').eq('empresa_id', selectedEmpresaId).eq('estado', 'pagada');
+            const { data: rels } = await supabase.from('facturas_pagos').select('factura_id').eq('empresa_id', selectedEmpresaId);
             const relSet = new Set(rels?.map(r => r.factura_id));
             const orphanPaid = paidInv?.filter(inv => !relSet.has(inv.id)) || [];
             setUnpaidInvoices(orphanPaid);

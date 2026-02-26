@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { processInvoiceDocument } from "@/lib/internalAutomation";
+import { useCompany } from "@/contexts/CompanyContext";
 
 interface FileItem {
     id: string;
@@ -43,6 +44,7 @@ const formatRut = (rut: string): string => {
 };
 
 export default function InvoiceUpload({ targetType, fixedTercero, onSuccess }: InvoiceUploadProps) {
+    const { selectedEmpresaId } = useCompany();
     const [isDragging, setIsDragging] = useState(false);
     const [uploadQueue, setUploadQueue] = useState<FileItem[]>([]);
     const [providers, setProviders] = useState<any[]>([]);
@@ -62,9 +64,11 @@ export default function InvoiceUpload({ targetType, fixedTercero, onSuccess }: I
     }, [targetType]);
 
     const fetchProviders = async () => {
+        if (!selectedEmpresaId) return;
         const { data, error } = await supabase
             .from('terceros')
             .select('*')
+            .eq('empresa_id', selectedEmpresaId)
             .eq('tipo', 'proveedor')
             .order('razon_social', { ascending: true });
         if (!error && data) {
@@ -73,9 +77,11 @@ export default function InvoiceUpload({ targetType, fixedTercero, onSuccess }: I
     };
 
     const fetchClients = async () => {
+        if (!selectedEmpresaId) return;
         const { data, error } = await supabase
             .from('terceros')
             .select('*')
+            .eq('empresa_id', selectedEmpresaId)
             .eq('tipo', 'cliente')
             .order('razon_social', { ascending: true });
         if (!error && data) {
@@ -135,6 +141,7 @@ export default function InvoiceUpload({ targetType, fixedTercero, onSuccess }: I
     };
 
     const checkTercero = async (rut: string, id: string) => {
+        if (!selectedEmpresaId) return null;
         if (!rut) return null;
         const cleanRut = rut.replace(/\./g, '').replace(/-/g, '').toUpperCase();
         console.log("Buscando tercero con RUT limpio:", cleanRut, "Original:", rut);
@@ -143,6 +150,7 @@ export default function InvoiceUpload({ targetType, fixedTercero, onSuccess }: I
             const { data, error } = await supabase
                 .from('terceros')
                 .select('*')
+                .eq('empresa_id', selectedEmpresaId)
                 .eq('rut', cleanRut)
                 .maybeSingle();
 
@@ -162,12 +170,14 @@ export default function InvoiceUpload({ targetType, fixedTercero, onSuccess }: I
     };
 
     const checkInvoiceDuplicate = async (numero: string, terceroId: string, id: string) => {
+        if (!selectedEmpresaId) return false;
         if (!numero || !terceroId) return false;
 
         try {
             const { count, error } = await supabase
                 .from('facturas')
                 .select('*', { count: 'exact', head: true })
+                .eq('empresa_id', selectedEmpresaId)
                 .eq('numero_documento', numero)
                 .eq('tercero_id', terceroId);
 
@@ -187,6 +197,7 @@ export default function InvoiceUpload({ targetType, fixedTercero, onSuccess }: I
     };
 
     const handleSaveToDatabase = async (id: string) => {
+        if (!selectedEmpresaId) return;
         const item = uploadQueue.find(i => i.id === id);
         if (!item || !item.extractedData) return;
 
@@ -230,6 +241,7 @@ export default function InvoiceUpload({ targetType, fixedTercero, onSuccess }: I
             const vencimiento = addDays(emision, plazos);
 
             const facturaData = {
+                empresa_id: selectedEmpresaId,
                 tipo: item.extractedData.tipo === 'gasto' ? 'compra' : item.extractedData.tipo,
                 numero_documento: item.extractedData.numero_documento,
                 monto: parseFloat(item.extractedData.monto),

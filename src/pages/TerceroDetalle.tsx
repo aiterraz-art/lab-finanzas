@@ -28,8 +28,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import InvoiceUpload from "@/components/InvoiceUpload";
+import { useCompany } from "@/contexts/CompanyContext";
 
 export default function TerceroDetalle() {
+    const { selectedEmpresaId } = useCompany();
     const { id } = useParams();
     const navigate = useNavigate();
     const [tercero, setTercero] = useState<any>(null);
@@ -48,10 +50,10 @@ export default function TerceroDetalle() {
     });
 
     useEffect(() => {
-        if (id) {
+        if (id && selectedEmpresaId) {
             fetchData();
         }
-    }, [id]);
+    }, [id, selectedEmpresaId]);
 
     useEffect(() => {
         if (tercero) {
@@ -67,6 +69,7 @@ export default function TerceroDetalle() {
     }, [tercero]);
 
     const handleDeleteTercero = async () => {
+        if (!selectedEmpresaId) return;
         const hasDocs = documentos.length > 0;
         const msg = hasDocs
             ? `ATENCIÓN: El cliente ${tercero.razon_social} tiene ${documentos.length} documentos asociados. Si lo borras, se ELIMINARÁN permanentemente todas sus facturas. ¿Deseas continuar?`
@@ -82,7 +85,8 @@ export default function TerceroDetalle() {
                 const { error: fError } = await supabase
                     .from('facturas')
                     .delete()
-                    .eq('rut', tercero.rut);
+                    .eq('rut', tercero.rut)
+                    .eq('empresa_id', selectedEmpresaId);
 
                 if (fError) throw fError;
             }
@@ -91,7 +95,8 @@ export default function TerceroDetalle() {
             const { error } = await supabase
                 .from('terceros')
                 .delete()
-                .eq('id', id);
+                .eq('id', id)
+                .eq('empresa_id', selectedEmpresaId);
 
             if (error) throw error;
 
@@ -106,6 +111,7 @@ export default function TerceroDetalle() {
     };
 
     const handleUpdateTercero = async () => {
+        if (!selectedEmpresaId) return;
         setIsSaving(true);
         try {
             const payload: any = {
@@ -123,7 +129,8 @@ export default function TerceroDetalle() {
             const { error } = await supabase
                 .from('terceros')
                 .update(payload)
-                .eq('id', id);
+                .eq('id', id)
+                .eq('empresa_id', selectedEmpresaId);
 
             if (error) {
                 if (error.message.includes("plazo_pago_dias")) {
@@ -131,7 +138,7 @@ export default function TerceroDetalle() {
                     alert("Aviso: El campo 'Días de Crédito' no se pudo guardar porque la columna no existe en la base de datos. Se guardaron los demás cambios.");
                     // Reintentamos sin esa columna
                     delete payload.plazo_pago_dias;
-                    await supabase.from('terceros').update(payload).eq('id', id);
+                    await supabase.from('terceros').update(payload).eq('id', id).eq('empresa_id', selectedEmpresaId);
                 } else {
                     throw error;
                 }
@@ -149,6 +156,7 @@ export default function TerceroDetalle() {
     };
 
     const fetchData = async () => {
+        if (!selectedEmpresaId) return;
         setLoading(true);
         try {
             // 1. Obtener info del tercero
@@ -156,6 +164,7 @@ export default function TerceroDetalle() {
                 .from('terceros')
                 .select('*')
                 .eq('id', id)
+                .eq('empresa_id', selectedEmpresaId)
                 .single();
 
             if (entityError) throw entityError;
@@ -167,6 +176,7 @@ export default function TerceroDetalle() {
                 .from('facturas')
                 .select('*')
                 .eq('rut', entity.rut) // O por tercero_id si ya está migrado
+                .eq('empresa_id', selectedEmpresaId)
                 .order('fecha_emision', { ascending: false });
 
             if (docsError) throw docsError;
@@ -180,6 +190,7 @@ export default function TerceroDetalle() {
     };
 
     const handleDeleteFactura = async (id: string, numero: string) => {
+        if (!selectedEmpresaId) return;
         const confirm = window.confirm(`¿Estás seguro de que deseas eliminar la factura folio ${numero}? Esta acción no se puede deshacer.`);
         if (!confirm) return;
 
@@ -187,7 +198,8 @@ export default function TerceroDetalle() {
             const { error } = await supabase
                 .from('facturas')
                 .delete()
-                .eq('id', id);
+                .eq('id', id)
+                .eq('empresa_id', selectedEmpresaId);
 
             if (error) throw error;
 

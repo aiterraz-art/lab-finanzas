@@ -15,22 +15,26 @@ import { Plus, Search, FileText, Loader2, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
+import { useCompany } from "@/contexts/CompanyContext";
 
 export default function InvoicesList() {
+    const { selectedEmpresaId } = useCompany();
     const [invoices, setInvoices] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
 
     useEffect(() => {
-        fetchInvoices();
-    }, []);
+        if (selectedEmpresaId) fetchInvoices();
+    }, [selectedEmpresaId]);
 
     async function fetchInvoices() {
+        if (!selectedEmpresaId) return;
         setLoading(true);
         try {
             const { data, error } = await supabase
                 .from('facturas')
                 .select('*')
+                .eq('empresa_id', selectedEmpresaId)
                 .order('fecha_emision', { ascending: false });
 
             if (error) throw error;
@@ -43,6 +47,7 @@ export default function InvoicesList() {
     }
 
     const handleDeleteFactura = async (id: string, numero: string) => {
+        if (!selectedEmpresaId) return;
         const confirm = window.confirm(`¿Estás seguro de que deseas eliminar la factura folio ${numero}? Esta acción no se puede deshacer.`);
         if (!confirm) return;
 
@@ -50,7 +55,8 @@ export default function InvoicesList() {
             const { error } = await supabase
                 .from('facturas')
                 .delete()
-                .eq('id', id);
+                .eq('id', id)
+                .eq('empresa_id', selectedEmpresaId);
 
             if (error) throw error;
 

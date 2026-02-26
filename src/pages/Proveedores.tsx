@@ -17,10 +17,12 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import InvoiceUpload from "@/components/InvoiceUpload";
+import { useCompany } from "@/contexts/CompanyContext";
 
 import { useNavigate } from "react-router-dom";
 
 export default function Proveedores() {
+    const { selectedEmpresaId } = useCompany();
     const navigate = useNavigate();
     const [proveedores, setProveedores] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -37,10 +39,11 @@ export default function Proveedores() {
     });
 
     useEffect(() => {
-        fetchProveedores();
-    }, []);
+        if (selectedEmpresaId) fetchProveedores();
+    }, [selectedEmpresaId]);
 
     const handleDeleteProveedor = async (prov: any) => {
+        if (!selectedEmpresaId) return;
         const hasDocs = (prov.facturas || []).length > 0;
         const msg = hasDocs
             ? `ATENCIÓN: El proveedor ${prov.razon_social} tiene ${prov.facturas.length} facturas asociadas. Si lo borras, estas facturas quedarán sin vínculo. ¿Deseas continuar?`
@@ -53,7 +56,8 @@ export default function Proveedores() {
             const { error } = await supabase
                 .from('terceros')
                 .delete()
-                .eq('id', prov.id);
+                .eq('id', prov.id)
+                .eq('empresa_id', selectedEmpresaId);
 
             if (error) throw error;
 
@@ -66,6 +70,7 @@ export default function Proveedores() {
     };
 
     const handleCreateProvManual = async () => {
+        if (!selectedEmpresaId) return;
         if (!newProvData.rut || !newProvData.razon_social || !newProvData.direccion) {
             alert("RUT, Razón Social y Dirección son obligatorios para registrar un nuevo proveedor.");
             return;
@@ -77,6 +82,7 @@ export default function Proveedores() {
             const { data, error } = await supabase
                 .from('terceros')
                 .insert([{
+                    empresa_id: selectedEmpresaId,
                     ...newProvData,
                     rut: cleanRut,
                     tipo: 'proveedor',
@@ -100,6 +106,7 @@ export default function Proveedores() {
     };
 
     const fetchProveedores = async () => {
+        if (!selectedEmpresaId) return;
         setLoading(true);
         try {
             const { data, error } = await supabase
@@ -114,6 +121,7 @@ export default function Proveedores() {
                         tipo
                     )
                 `)
+                .eq('empresa_id', selectedEmpresaId)
                 .eq('tipo', 'proveedor')
                 .order('razon_social', { ascending: true });
 

@@ -20,6 +20,7 @@ import Login from "@/pages/Login";
 import ResetPassword from "@/pages/ResetPassword";
 import RendicionPrint from "@/pages/RendicionPrint";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { CompanyProvider } from "@/contexts/CompanyContext";
 import { Navigate, Outlet } from "react-router-dom";
 
 const ProtectedRoute = () => {
@@ -43,35 +44,37 @@ const ProtectedRoute = () => {
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
+      <CompanyProvider>
+        <Router>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
 
-          <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<DashboardLayout />}>
-              <Route index element={<Dashboard />} />
-              <Route path="clientes" element={<Clientes />} />
-              <Route path="clientes/:id" element={<TerceroDetalle />} />
-              <Route path="proveedores" element={<Proveedores />} />
-              <Route path="proveedores/:id" element={<TerceroDetalle />} />
-              <Route path="reports" element={<Reports />} />
-              <Route path="settings" element={<Settings />} />
-              <Route path="reconciliation" element={<BankReconciliation />} />
-              <Route path="cashflow" element={<CashFlow />} />
-              <Route path="collections" element={<Collections />} />
-              <Route path="budgets" element={<Budgets />} />
-              <Route path="audit" element={<ReconciliationAudit />} />
-              <Route path="rendiciones" element={<Rendiciones />} />
-              <Route path="rendiciones/print/:id" element={<RendicionPrint />} />
-              <Route path="users" element={<Users />} />
-              <Route path="invoices/new" element={<ManualInvoiceEntry />} />
-              <Route path="facturas/nueva" element={<ManualInvoiceEntry />} />
-              <Route path="*" element={<Dashboard />} />
+            <Route element={<ProtectedRoute />}>
+              <Route path="/" element={<DashboardLayout />}>
+                <Route index element={<Dashboard />} />
+                <Route path="clientes" element={<Clientes />} />
+                <Route path="clientes/:id" element={<TerceroDetalle />} />
+                <Route path="proveedores" element={<Proveedores />} />
+                <Route path="proveedores/:id" element={<TerceroDetalle />} />
+                <Route path="reports" element={<Reports />} />
+                <Route path="settings" element={<Settings />} />
+                <Route path="reconciliation" element={<BankReconciliation />} />
+                <Route path="cashflow" element={<CashFlow />} />
+                <Route path="collections" element={<Collections />} />
+                <Route path="budgets" element={<Budgets />} />
+                <Route path="audit" element={<ReconciliationAudit />} />
+                <Route path="rendiciones" element={<Rendiciones />} />
+                <Route path="rendiciones/print/:id" element={<RendicionPrint />} />
+                <Route path="users" element={<Users />} />
+                <Route path="invoices/new" element={<ManualInvoiceEntry />} />
+                <Route path="facturas/nueva" element={<ManualInvoiceEntry />} />
+                <Route path="*" element={<Dashboard />} />
+              </Route>
             </Route>
-          </Route>
-        </Routes>
-      </Router>
+          </Routes>
+        </Router>
+      </CompanyProvider>
     </AuthProvider>
   );
 }

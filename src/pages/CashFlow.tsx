@@ -7,29 +7,34 @@ import { supabase } from "@/lib/supabase";
 import { format, addDays, startOfDay } from "date-fns";
 import { es } from "date-fns/locale";
 import { Trash2, Loader2 } from "lucide-react";
+import { useCompany } from "@/contexts/CompanyContext";
 
 export default function CashFlow() {
+    const { selectedEmpresaId } = useCompany();
     const [loading, setLoading] = useState(true);
     const [recurringExpenses, setRecurringExpenses] = useState<any[]>([]);
     const [projectionData, setProjectionData] = useState<any[]>([]);
     const [newExpense, setNewExpense] = useState({ descripcion: "", monto: "", dia_pago: "" });
 
     useEffect(() => {
-        fetchData();
-    }, []);
+        if (selectedEmpresaId) fetchData();
+    }, [selectedEmpresaId]);
 
     const fetchData = async () => {
+        if (!selectedEmpresaId) return;
         setLoading(true);
         try {
             const { data: recurring } = await supabase
                 .from('gastos_recurrentes')
                 .select('*')
+                .eq('empresa_id', selectedEmpresaId)
                 .eq('activo', true);
             setRecurringExpenses(recurring || []);
 
             const { data: latestMov } = await supabase
                 .from('movimientos_banco')
                 .select('saldo')
+                .eq('empresa_id', selectedEmpresaId)
                 .order('id_secuencial', { ascending: false })
                 .limit(1)
                 .single();
@@ -38,12 +43,14 @@ export default function CashFlow() {
             const { data: pendingInvoices } = await supabase
                 .from('facturas')
                 .select('monto, fecha_vencimiento, fecha_emision')
+                .eq('empresa_id', selectedEmpresaId)
                 .eq('tipo', 'venta')
                 .eq('estado', 'pendiente');
 
             const { data: pendingPurchases } = await supabase
                 .from('facturas')
                 .select('monto, fecha_vencimiento, fecha_emision')
+                .eq('empresa_id', selectedEmpresaId)
                 .eq('tipo', 'compra')
                 .eq('estado', 'pendiente');
 
@@ -87,17 +94,19 @@ export default function CashFlow() {
     };
 
     const handleAddExpense = async () => {
+        if (!selectedEmpresaId) return;
         const dia = parseInt(newExpense.dia_pago);
         if (!newExpense.descripcion || !newExpense.monto || isNaN(dia) || dia < 1 || dia > 31) return;
         try {
-            await supabase.from('gastos_recurrentes').insert([{ descripcion: newExpense.descripcion, monto: Number(newExpense.monto), dia_pago: dia, categoria: 'General' }]);
+            await supabase.from('gastos_recurrentes').insert([{ empresa_id: selectedEmpresaId, descripcion: newExpense.descripcion, monto: Number(newExpense.monto), dia_pago: dia, categoria: 'General' }]);
             setNewExpense({ descripcion: "", monto: "", dia_pago: "" });
             fetchData();
         } catch (error) { console.error(error); }
     };
 
     const handleDeleteExpense = async (id: string) => {
-        await supabase.from('gastos_recurrentes').update({ activo: false }).eq('id', id);
+        if (!selectedEmpresaId) return;
+        await supabase.from('gastos_recurrentes').update({ activo: false }).eq('id', id).eq('empresa_id', selectedEmpresaId);
         fetchData();
     };
 

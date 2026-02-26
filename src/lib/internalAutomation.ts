@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 type InviteRole = "user" | "admin";
 
 type CollectionReminderPayload = {
+  empresa_id: string;
   tercero_id: string;
   nombre: string;
   email: string;
@@ -87,6 +88,7 @@ export const inviteUserInternal = async (email: string, role: InviteRole) => {
 export const queueCollectionReminder = async (payload: CollectionReminderPayload) => {
   const { error } = await supabase.from("collection_reminders").insert([
     {
+      empresa_id: payload.empresa_id,
       tercero_id: payload.tercero_id,
       nombre: payload.nombre,
       email: payload.email,

@@ -10,10 +10,12 @@ import { supabase } from "@/lib/supabase";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import InvoiceUpload from "@/components/InvoiceUpload";
 import { queueCollectionReminder } from "@/lib/internalAutomation";
+import { useCompany } from "@/contexts/CompanyContext";
 
 import { useNavigate } from "react-router-dom";
 
 export default function Clientes() {
+    const { selectedEmpresaId } = useCompany();
     const navigate = useNavigate();
     const [clientes, setClientes] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -31,10 +33,11 @@ export default function Clientes() {
     });
 
     useEffect(() => {
-        fetchClientes();
-    }, []);
+        if (selectedEmpresaId) fetchClientes();
+    }, [selectedEmpresaId]);
 
     const handleSendCollectionEmail = async (cliente: any) => {
+        if (!selectedEmpresaId) return;
         const saldo = getClienteSaldo(cliente.facturas);
         if (saldo <= 0) {
             alert("Este cliente no tiene saldo pendiente.");
@@ -46,6 +49,7 @@ export default function Clientes() {
 
         try {
             await queueCollectionReminder({
+                empresa_id: selectedEmpresaId,
                 tercero_id: cliente.id,
                 nombre: cliente.razon_social,
                 email: cliente.email || 'no-email@example.com',
@@ -60,6 +64,7 @@ export default function Clientes() {
     };
 
     const handleCreateClienteManual = async () => {
+        if (!selectedEmpresaId) return;
         if (!newClienteData.rut || !newClienteData.razon_social || !newClienteData.email || !newClienteData.telefono) {
             alert("RUT, Razón Social, Email y Teléfono son campos obligatorios.");
             return;
@@ -71,6 +76,7 @@ export default function Clientes() {
             const { data, error } = await supabase
                 .from('terceros')
                 .insert([{
+                    empresa_id: selectedEmpresaId,
                     ...newClienteData,
                     rut: cleanRut,
                     tipo: 'cliente',
@@ -94,6 +100,7 @@ export default function Clientes() {
     };
 
     const handleDeleteCliente = async (cliente: any) => {
+        if (!selectedEmpresaId) return;
         const hasDocs = (cliente.facturas || []).length > 0;
         const msg = hasDocs
             ? `ATENCIÓN: El cliente ${cliente.razon_social} tiene ${cliente.facturas.length} documentos asociados. Si lo borras, se ELIMINARÁN permanentemente todas sus facturas. ¿Deseas continuar?`
@@ -108,7 +115,8 @@ export default function Clientes() {
                 const { error: fError } = await supabase
                     .from('facturas')
                     .delete()
-                    .eq('tercero_id', cliente.id); // Borramos por ID relacional para asegurar integridad
+                    .eq('tercero_id', cliente.id)
+                    .eq('empresa_id', selectedEmpresaId); // Borramos por ID relacional para asegurar integridad
 
                 if (fError) throw fError;
             }
@@ -117,7 +125,8 @@ export default function Clientes() {
             const { error } = await supabase
                 .from('terceros')
                 .delete()
-                .eq('id', cliente.id);
+                .eq('id', cliente.id)
+                .eq('empresa_id', selectedEmpresaId);
 
             if (error) throw error;
 
@@ -130,6 +139,7 @@ export default function Clientes() {
     };
 
     const fetchClientes = async () => {
+        if (!selectedEmpresaId) return;
         setLoading(true);
         try {
             // Intento 1: Con plazo_pago_dias (Ideal)
@@ -141,6 +151,7 @@ export default function Clientes() {
                         id, monto, estado, fecha_emision, fecha_vencimiento, tipo
                     )
                 `)
+                .eq('empresa_id', selectedEmpresaId)
                 .eq('tipo', 'cliente')
                 .order('razon_social', { ascending: true });
 
@@ -156,6 +167,7 @@ export default function Clientes() {
                                 id, monto, estado, fecha_emision, fecha_vencimiento, tipo
                             )
                         `)
+                        .eq('empresa_id', selectedEmpresaId)
                         .eq('tipo', 'cliente')
                         .order('razon_social', { ascending: true });
 

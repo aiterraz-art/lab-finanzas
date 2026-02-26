@@ -6,23 +6,27 @@ import { supabase } from "@/lib/supabase";
 import { format, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { HandCoins, MessageSquare, Mail, Search, Clock } from "lucide-react";
+import { useCompany } from "@/contexts/CompanyContext";
 
 export default function Collections() {
+    const { selectedEmpresaId } = useCompany();
     const [loading, setLoading] = useState(true);
     const [overdueInvoices, setOverdueInvoices] = useState<any[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
 
     useEffect(() => {
-        fetchOverdue();
-    }, []);
+        if (selectedEmpresaId) fetchOverdue();
+    }, [selectedEmpresaId]);
 
     const fetchOverdue = async () => {
+        if (!selectedEmpresaId) return;
         setLoading(true);
         try {
             const now = new Date().toISOString();
             const { data } = await supabase
                 .from('facturas')
                 .select('*, terceros(telefono, email)')
+                .eq('empresa_id', selectedEmpresaId)
                 .eq('tipo', 'venta')
                 .eq('estado', 'pendiente')
                 .lt('fecha_vencimiento', now)

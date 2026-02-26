@@ -4,19 +4,22 @@ import { supabase } from "@/lib/supabase";
 import { format } from "date-fns";
 import { Loader2 } from "lucide-react";
 import { es } from "date-fns/locale";
+import { useCompany } from "@/contexts/CompanyContext";
 
 export default function RendicionPrint() {
+    const { selectedEmpresaId } = useCompany();
     const { id } = useParams();
     const [rendicion, setRendicion] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (id) {
+        if (id && selectedEmpresaId) {
             fetchRendicion();
         }
-    }, [id]);
+    }, [id, selectedEmpresaId]);
 
     const fetchRendicion = async () => {
+        if (!selectedEmpresaId) return;
         try {
             const { data, error } = await supabase
                 .from('rendiciones')
@@ -30,6 +33,7 @@ export default function RendicionPrint() {
                     rendicion_detalles (*)
                 `)
                 .eq('id', id)
+                .eq('empresa_id', selectedEmpresaId)
                 .single();
 
             if (error) throw error;

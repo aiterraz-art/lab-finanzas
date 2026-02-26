@@ -33,6 +33,7 @@ import {
 import { addDays } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { useCompany } from "@/contexts/CompanyContext";
 
 // Schema matching Sprint 1 requirements (simplified for manual entry without lookups yet)
 const formSchema = z.object({
@@ -52,6 +53,7 @@ interface ManualInvoiceEntryProps {
 }
 
 export default function ManualInvoiceEntry({ embedded = false }: ManualInvoiceEntryProps) {
+    const { selectedEmpresaId } = useCompany();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
     const [terceros, setTerceros] = useState<any[]>([]);
@@ -69,12 +71,13 @@ export default function ManualInvoiceEntry({ embedded = false }: ManualInvoiceEn
     });
 
     useEffect(() => {
+        if (!selectedEmpresaId) return;
         const fetchTerceros = async () => {
             try {
-                const { data, error } = await supabase.from('terceros').select('id, razon_social, plazo_pago_dias, tipo').eq('estado', 'activo');
+                const { data, error } = await supabase.from('terceros').select('id, razon_social, plazo_pago_dias, tipo').eq('empresa_id', selectedEmpresaId).eq('estado', 'activo');
                 if (error) {
                     if (error.code === 'PGRST204' || error.message.includes('plazo_pago_dias')) {
-                        const { data: data2 } = await supabase.from('terceros').select('id, razon_social, tipo').eq('estado', 'activo');
+                        const { data: data2 } = await supabase.from('terceros').select('id, razon_social, tipo').eq('empresa_id', selectedEmpresaId).eq('estado', 'activo');
                         setTerceros(data2 || []);
                     } else throw error;
                 } else {
@@ -85,7 +88,7 @@ export default function ManualInvoiceEntry({ embedded = false }: ManualInvoiceEn
             }
         };
         fetchTerceros();
-    }, []);
+    }, [selectedEmpresaId]);
 
     const watchFecha = form.watch("fecha");
     const watchTerceroId = form.watch("tercero_id");
@@ -101,6 +104,10 @@ export default function ManualInvoiceEntry({ embedded = false }: ManualInvoiceEn
     }, [watchTerceroId, watchFecha, terceros]);
 
     async function onSubmit(values: FormValues) {
+        if (!selectedEmpresaId) {
+            setMessage("Debes seleccionar una empresa.");
+            return;
+        }
         setIsSubmitting(true);
         setMessage(null);
 
@@ -110,6 +117,7 @@ export default function ManualInvoiceEntry({ embedded = false }: ManualInvoiceEn
             const { error } = await supabase
                 .from("facturas")
                 .insert({
+                    empresa_id: selectedEmpresaId,
                     created_at: new Date().toISOString(),
                     fecha_emision: format(values.fecha, 'yyyy-MM-dd'),
                     fecha_vencimiento: format(values.fecha_vencimiento, 'yyyy-MM-dd'),

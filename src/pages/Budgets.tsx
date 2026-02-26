@@ -4,12 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { format, startOfMonth, endOfMonth } from "date-fns";
+import { useCompany } from "@/contexts/CompanyContext";
 
 import { Target, Save, Loader2 } from "lucide-react";
 
 const CATEGORIAS = ["Insumos", "Marketing", "Sueldos", "Servicios", "Inversión"];
 
 export default function Budgets() {
+    const { selectedEmpresaId } = useCompany();
     const [loading, setLoading] = useState(true);
     const [budgets, setBudgets] = useState<any[]>([]);
     const [actualExpenses, setActualExpenses] = useState<Record<string, number>>({});
@@ -17,10 +19,11 @@ export default function Budgets() {
     const [formValues, setFormValues] = useState<Record<string, string>>({});
 
     useEffect(() => {
-        fetchData();
-    }, []);
+        if (selectedEmpresaId) fetchData();
+    }, [selectedEmpresaId]);
 
     const fetchData = async () => {
+        if (!selectedEmpresaId) return;
         setLoading(true);
         try {
             const start = startOfMonth(new Date());
@@ -29,6 +32,7 @@ export default function Budgets() {
             const { data: budgetData } = await supabase
                 .from('presupuestos')
                 .select('*')
+                .eq('empresa_id', selectedEmpresaId)
                 .eq('mes', format(start, 'yyyy-MM-01'));
             setBudgets(budgetData || []);
 
@@ -41,6 +45,7 @@ export default function Budgets() {
             const { data: invoices } = await supabase
                 .from('facturas')
                 .select('monto, descripcion')
+                .eq('empresa_id', selectedEmpresaId)
                 .eq('tipo', 'compra')
                 .eq('estado', 'pagada')
                 .gte('created_at', start.toISOString())
@@ -69,15 +74,17 @@ export default function Budgets() {
     };
 
     const handleSave = async () => {
+        if (!selectedEmpresaId) return;
         try {
             const start = format(startOfMonth(new Date()), 'yyyy-MM-01');
             const upserts = CATEGORIAS.map(cat => ({
+                empresa_id: selectedEmpresaId,
                 mes: start,
                 categoria: cat,
                 monto_presupuestado: Number(formValues[cat] || 0)
             }));
 
-            const { error } = await supabase.from('presupuestos').upsert(upserts, { onConflict: 'mes,categoria' });
+            const { error } = await supabase.from('presupuestos').upsert(upserts, { onConflict: 'empresa_id,mes,categoria' });
             if (error) throw error;
             setEditMode(false);
             fetchData();

@@ -33,6 +33,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { useCompany } from "@/contexts/CompanyContext";
 
 interface RendicionItem {
     id?: string;
@@ -41,6 +42,7 @@ interface RendicionItem {
 }
 
 export default function Rendiciones() {
+    const { selectedEmpresaId } = useCompany();
     const [rendiciones, setRendiciones] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -59,16 +61,20 @@ export default function Rendiciones() {
     const [isSavingEmployee, setIsSavingEmployee] = useState(false);
 
     useEffect(() => {
-        fetchRendiciones();
-        fetchTerceros();
-    }, []);
+        if (selectedEmpresaId) {
+            fetchRendiciones();
+            fetchTerceros();
+        }
+    }, [selectedEmpresaId]);
 
     const fetchRendiciones = async () => {
+        if (!selectedEmpresaId) return;
         setLoading(true);
         try {
             const { data, error } = await supabase
                 .from('rendiciones')
                 .select('*, terceros(razon_social)')
+                .eq('empresa_id', selectedEmpresaId)
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
@@ -81,10 +87,12 @@ export default function Rendiciones() {
     };
 
     const fetchTerceros = async () => {
+        if (!selectedEmpresaId) return;
         try {
             const { data, error } = await supabase
                 .from('terceros')
                 .select('id, razon_social, cargo')
+                .eq('empresa_id', selectedEmpresaId)
                 .eq('estado', 'activo')
                 .eq('es_trabajador', true);
             if (error) throw error;
@@ -95,6 +103,7 @@ export default function Rendiciones() {
     };
 
     const handleAddEmployee = async () => {
+        if (!selectedEmpresaId) return;
         if (!newEmployee.nombre || !newEmployee.rut) {
             alert("Nombre y RUT son obligatorios.");
             return;
@@ -105,6 +114,7 @@ export default function Rendiciones() {
             const { data, error } = await supabase
                 .from('terceros')
                 .insert({
+                    empresa_id: selectedEmpresaId,
                     razon_social: newEmployee.nombre,
                     rut: newEmployee.rut,
                     telefono: newEmployee.telefono || null,
@@ -158,6 +168,7 @@ export default function Rendiciones() {
     };
 
     const handleSubmit = async () => {
+        if (!selectedEmpresaId) return;
         if (!selectedTercero || items.some(i => !i.descripcion || i.monto <= 0)) {
             alert("Por favor completa todos los campos requeridos.");
             return;
@@ -190,6 +201,7 @@ export default function Rendiciones() {
             const { data: rendicion, error: rendicionError } = await supabase
                 .from('rendiciones')
                 .insert({
+                    empresa_id: selectedEmpresaId,
                     tercero_id: selectedTercero,
                     tercero_nombre: terceros.find(t => t.id === selectedTercero)?.razon_social,
                     descripcion: descripcion,
@@ -204,6 +216,7 @@ export default function Rendiciones() {
 
             // 2. Insert Details
             const detailsToInsert = items.map(item => ({
+                empresa_id: selectedEmpresaId,
                 rendicion_id: rendicion.id,
                 descripcion: item.descripcion,
                 monto: item.monto

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 
@@ -34,6 +35,7 @@ const navigation = [
 export function Sidebar() {
     const location = useLocation();
     const { user, signOut } = useAuth();
+    const { selectedEmpresa } = useCompany();
     const [isAdmin, setIsAdmin] = useState(false);
 
     useEffect(() => {
@@ -49,8 +51,8 @@ export function Sidebar() {
             <div className="h-24 flex items-center px-6 border-b">
                 <Link to="/" className="flex items-center w-full justify-center">
                     <img
-                        src="/logo_lab3d.jpg"
-                        alt="LAB3D Logo"
+                        src={selectedEmpresa?.logo_url || "/logo_lab3d.jpg"}
+                        alt={selectedEmpresa?.nombre || "LAB3D Logo"}
                         className="h-16 w-auto object-contain transition-transform hover:scale-105"
                     />
                 </Link>

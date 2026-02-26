@@ -7,8 +7,10 @@ import { supabase } from "@/lib/supabase";
 import { format, startOfMonth, endOfMonth, subMonths, isSameMonth } from "date-fns";
 import { es } from "date-fns/locale";
 import * as XLSX from "xlsx";
+import { useCompany } from "@/contexts/CompanyContext";
 
 export default function Reports() {
+    const { selectedEmpresaId } = useCompany();
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({
         monthlyIncome: 0,
@@ -23,10 +25,11 @@ export default function Reports() {
     const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
 
     useEffect(() => {
-        fetchReportData();
-    }, []);
+        if (selectedEmpresaId) fetchReportData();
+    }, [selectedEmpresaId]);
 
     const fetchReportData = async () => {
+        if (!selectedEmpresaId) return;
         setLoading(true);
         try {
             const now = new Date();
@@ -39,12 +42,14 @@ export default function Reports() {
             const { data: currentMonthInvoices } = await supabase
                 .from('facturas')
                 .select('*')
+                .eq('empresa_id', selectedEmpresaId)
                 .gte('fecha_emision', format(startOfCurrentMonth, 'yyyy-MM-dd'));
 
             // 2. Fetch previous month data for comparison
             const { data: prevMonthInvoices } = await supabase
                 .from('facturas')
                 .select('*')
+                .eq('empresa_id', selectedEmpresaId)
                 .gte('fecha_emision', format(startOfPrevMonth, 'yyyy-MM-dd'))
                 .lte('fecha_emision', format(endOfPrevMonth, 'yyyy-MM-dd'));
 
@@ -52,6 +57,7 @@ export default function Reports() {
             const { data: pendingInvoices } = await supabase
                 .from('facturas')
                 .select('monto')
+                .eq('empresa_id', selectedEmpresaId)
                 .eq('tipo', 'venta')
                 .eq('estado', 'pendiente');
 
@@ -59,6 +65,7 @@ export default function Reports() {
             const { data: historicalInvoices } = await supabase
                 .from('facturas')
                 .select('tipo, monto, fecha_emision, created_at, estado')
+                .eq('empresa_id', selectedEmpresaId)
                 .gte('fecha_emision', format(sixMonthsAgo, 'yyyy-MM-dd'))
                 .eq('estado', 'pagada');
 
@@ -66,6 +73,7 @@ export default function Reports() {
             const { data: recent } = await supabase
                 .from('facturas')
                 .select('*')
+                .eq('empresa_id', selectedEmpresaId)
                 .order('fecha_emision', { ascending: false })
                 .limit(20);
 
