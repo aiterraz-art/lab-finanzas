@@ -5,11 +5,11 @@ const rawSupabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 const resolveSupabaseUrl = (url?: string) => {
-    const fallback = 'https://api.atapp.cl';
+    const fallback = 'https://finanzas.atapp.cl';
     if (!url) return fallback;
 
     // Legacy URL from old deployment route
-    if (url.includes('api.gestionlab.100.66.33.103.sslip.io')) {
+    if (url.includes('api.gestionlab.100.66.33.103.sslip.io') || url.includes('finanzasdigitales.100.66.33.103.sslip.io')) {
         return fallback;
     }
 
