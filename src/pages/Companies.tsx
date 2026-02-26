@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useCompany } from '@/contexts/CompanyContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Building2, Loader2, Pencil, Plus, Save } from 'lucide-react';
+import { Building2, Loader2, Pencil, Plus, Save, Upload } from 'lucide-react';
 
 type CompanyForm = {
   id?: string;
@@ -57,7 +57,9 @@ export default function Companies() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [form, setForm] = useState<CompanyForm>(EMPTY_FORM);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isGlobalAdmin) {
@@ -154,6 +156,32 @@ export default function Companies() {
     }
   };
 
+  const handleUploadLogo = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploadingLogo(true);
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
+      const safeName = (form.nombre || 'empresa').toLowerCase().replace(/[^a-z0-9-_]/g, '-');
+      const path = `${safeName}/${Date.now()}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('company-logos')
+        .upload(path, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('company-logos').getPublicUrl(path);
+      setForm((prev) => ({ ...prev, logo_url: data.publicUrl }));
+    } catch (error: any) {
+      alert(`No se pudo subir el logo: ${error.message}`);
+    } finally {
+      setUploadingLogo(false);
+      if (logoInputRef.current) logoInputRef.current.value = '';
+    }
+  };
+
   if (!isGlobalAdmin) {
     return (
       <div className="rounded-lg border bg-card p-6 text-muted-foreground">
@@ -224,7 +252,19 @@ export default function Companies() {
               </div>
               <div className="grid gap-2 md:col-span-2">
                 <Label>Logo URL</Label>
-                <Input value={form.logo_url} onChange={(e) => setForm({ ...form, logo_url: e.target.value })} placeholder="https://.../logo.png" />
+                <div className="flex gap-2">
+                  <Input value={form.logo_url} onChange={(e) => setForm({ ...form, logo_url: e.target.value })} placeholder="https://.../logo.png" />
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleUploadLogo}
+                  />
+                  <Button type="button" variant="outline" onClick={() => logoInputRef.current?.click()} disabled={uploadingLogo}>
+                    {uploadingLogo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  </Button>
+                </div>
               </div>
             </div>
 
