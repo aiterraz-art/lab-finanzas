@@ -3,6 +3,7 @@ import {
     LayoutDashboard,
     Scale,
     Building2,
+    Building,
     BarChart3,
     Settings,
     Truck,
@@ -64,18 +65,32 @@ export function Sidebar() {
                 </div>
                 {/* Admin Menu */}
                 {isAdmin && (
-                    <Link
-                        to="/users"
-                        className={cn(
-                            "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors mb-2",
-                            location.pathname === "/users"
-                                ? "bg-primary/10 text-primary"
-                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                        )}
-                    >
-                        <ShieldCheck className="w-5 h-5" />
-                        Usuarios
-                    </Link>
+                    <>
+                        <Link
+                            to="/users"
+                            className={cn(
+                                "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors mb-1",
+                                location.pathname === "/users"
+                                    ? "bg-primary/10 text-primary"
+                                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                            )}
+                        >
+                            <ShieldCheck className="w-5 h-5" />
+                            Usuarios
+                        </Link>
+                        <Link
+                            to="/empresas"
+                            className={cn(
+                                "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors mb-2",
+                                location.pathname === "/empresas"
+                                    ? "bg-primary/10 text-primary"
+                                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                            )}
+                        >
+                            <Building className="w-5 h-5" />
+                            Empresas
+                        </Link>
+                    </>
                 )}
 
                 {navigation.map((item) => {
