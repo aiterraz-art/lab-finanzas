@@ -4,7 +4,8 @@ import { Header } from "./Header";
 import { useCompany } from "@/contexts/CompanyContext";
 
 export default function DashboardLayout() {
-    const { loading, selectedEmpresaId } = useCompany();
+    const { loading, selectedEmpresaId, selectedRole, isGlobalAdmin } = useCompany();
+    const isViewerMode = !isGlobalAdmin && selectedRole === 'viewer';
 
     return (
         <div className="min-h-screen bg-background font-sans">
@@ -13,10 +14,17 @@ export default function DashboardLayout() {
                 <Header />
                 <main className="flex-1 p-6 overflow-y-auto">
                     <div className="max-w-7xl mx-auto space-y-6">
+                        {isViewerMode && (
+                            <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-900">
+                                Modo viewer activo: solo lectura, no puedes editar datos.
+                            </div>
+                        )}
                         {loading ? (
                             <div className="text-muted-foreground">Cargando empresa...</div>
                         ) : selectedEmpresaId ? (
-                            <Outlet />
+                            <div className={isViewerMode ? "pointer-events-none select-none" : ""}>
+                                <Outlet />
+                            </div>
                         ) : (
                             <div className="rounded-lg border bg-card p-6 text-muted-foreground">
                                 No tienes empresas asignadas. Pide acceso a un administrador.
