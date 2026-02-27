@@ -31,6 +31,8 @@ export default function BankReconciliation() {
     const [newColumnName, setNewColumnName] = useState("");
     const [newColumnKey, setNewColumnKey] = useState("");
     const [newColumnType, setNewColumnType] = useState("texto");
+    const [isAddColumnOpen, setIsAddColumnOpen] = useState(false);
+    const [isLibroBancoMenuOpen, setIsLibroBancoMenuOpen] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -828,12 +830,39 @@ export default function BankReconciliation() {
                     <Button variant="outline" className="gap-2" onClick={fetchData}>
                         <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} /> Actualizar
                     </Button>
-                    <Button variant="outline" className="gap-2" onClick={exportLibroBanco}>
-                        Exportar Libro Banco
-                    </Button>
-                    <Button variant="outline" className="gap-2" onClick={printLibroBanco}>
-                        Imprimir Libro Banco
-                    </Button>
+                    <Popover open={isLibroBancoMenuOpen} onOpenChange={setIsLibroBancoMenuOpen}>
+                        <PopoverTrigger asChild>
+                            <Button variant="outline" className="gap-2">
+                                Libro Banco
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-56 p-2" align="end">
+                            <div className="space-y-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full justify-start"
+                                    onClick={() => {
+                                        exportLibroBanco();
+                                        setIsLibroBancoMenuOpen(false);
+                                    }}
+                                >
+                                    Exportar Excel
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full justify-start"
+                                    onClick={() => {
+                                        printLibroBanco();
+                                        setIsLibroBancoMenuOpen(false);
+                                    }}
+                                >
+                                    Imprimir
+                                </Button>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
                     <input
                         type="file"
                         ref={fileInputRef}
@@ -874,33 +903,45 @@ export default function BankReconciliation() {
                     <Button variant={filter === "matched" ? "default" : "outline"} size="sm" onClick={() => setFilter("matched")}>Conciliados</Button>
                     <Button variant={filter === "abonos" ? "default" : "outline"} size="sm" onClick={() => setFilter("abonos")}>Abonos</Button>
                     <Button variant={filter === "egresos" ? "default" : "outline"} size="sm" onClick={() => setFilter("egresos")}>Egresos</Button>
-                </div>
-
-                <div className="rounded-lg border bg-card p-3">
-                    <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">Columnas adicionales por empresa</p>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-                        <Input
-                            placeholder="Nombre columna (ej: Centro Costo)"
-                            value={newColumnName}
-                            onChange={(e) => setNewColumnName(e.target.value)}
-                        />
-                        <Input
-                            placeholder="Clave opcional (ej: centro_costo)"
-                            value={newColumnKey}
-                            onChange={(e) => setNewColumnKey(e.target.value)}
-                        />
-                        <select
-                            className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                            value={newColumnType}
-                            onChange={(e) => setNewColumnType(e.target.value)}
-                        >
-                            <option value="texto">Texto</option>
-                            <option value="numero">Número</option>
-                            <option value="fecha">Fecha</option>
-                            <option value="booleano">Booleano</option>
-                        </select>
-                        <Button onClick={handleAddCustomColumn}>Agregar Columna</Button>
-                    </div>
+                    <Popover open={isAddColumnOpen} onOpenChange={setIsAddColumnOpen}>
+                        <PopoverTrigger asChild>
+                            <Button variant="outline" size="sm">Agregar Columna</Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80 p-3" align="start">
+                            <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">Nueva columna adicional</p>
+                            <div className="space-y-2">
+                                <Input
+                                    placeholder="Nombre columna (ej: Centro Costo)"
+                                    value={newColumnName}
+                                    onChange={(e) => setNewColumnName(e.target.value)}
+                                />
+                                <Input
+                                    placeholder="Clave opcional (ej: centro_costo)"
+                                    value={newColumnKey}
+                                    onChange={(e) => setNewColumnKey(e.target.value)}
+                                />
+                                <select
+                                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                                    value={newColumnType}
+                                    onChange={(e) => setNewColumnType(e.target.value)}
+                                >
+                                    <option value="texto">Texto</option>
+                                    <option value="numero">Número</option>
+                                    <option value="fecha">Fecha</option>
+                                    <option value="booleano">Booleano</option>
+                                </select>
+                                <Button
+                                    className="w-full"
+                                    onClick={async () => {
+                                        await handleAddCustomColumn();
+                                        if (newColumnName.trim()) setIsAddColumnOpen(false);
+                                    }}
+                                >
+                                    Guardar Columna
+                                </Button>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
                 </div>
 
                 {loading ? (
