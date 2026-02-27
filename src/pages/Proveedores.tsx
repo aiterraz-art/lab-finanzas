@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useCompany } from "@/contexts/CompanyContext";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { useNavigate } from "react-router-dom";
 
@@ -28,12 +29,21 @@ export default function Proveedores() {
     const [searchQuery, setSearchQuery] = useState("");
     const [isNewProvOpen, setIsNewProvOpen] = useState(false);
     const [isSavingProv, setIsSavingProv] = useState(false);
+    const [isNewInvoiceOpen, setIsNewInvoiceOpen] = useState(false);
+    const [isSavingInvoice, setIsSavingInvoice] = useState(false);
     const [newProvData, setNewProvData] = useState({
         rut: "",
         razon_social: "",
         email: "",
         telefono: "",
         direccion: ""
+    });
+    const [newInvoiceData, setNewInvoiceData] = useState({
+        tercero_id: "",
+        fecha_emision: new Date().toISOString().split("T")[0],
+        fecha_vencimiento: "",
+        numero_documento: "",
+        monto: ""
     });
 
     useEffect(() => {
@@ -100,6 +110,69 @@ export default function Proveedores() {
             alert(`Error: ${error.message}`);
         } finally {
             setIsSavingProv(false);
+        }
+    };
+
+    const handleCreateCompraInvoice = async () => {
+        if (!selectedEmpresaId) return;
+        if (!newInvoiceData.tercero_id || !newInvoiceData.fecha_emision || !newInvoiceData.fecha_vencimiento || !newInvoiceData.numero_documento || !newInvoiceData.monto) {
+            alert("Selecciona proveedor y completa fecha documento, folio, vencimiento y total con IVA.");
+            return;
+        }
+
+        const selectedProv = proveedores.find((p) => p.id === newInvoiceData.tercero_id);
+        if (!selectedProv) {
+            alert("Proveedor no válido.");
+            return;
+        }
+
+        setIsSavingInvoice(true);
+        try {
+            const { count, error: dupError } = await supabase
+                .from('facturas')
+                .select('*', { count: 'exact', head: true })
+                .eq('empresa_id', selectedEmpresaId)
+                .eq('tercero_id', newInvoiceData.tercero_id)
+                .eq('numero_documento', newInvoiceData.numero_documento.trim());
+
+            if (dupError) throw dupError;
+            if ((count || 0) > 0) {
+                alert("Ya existe una factura con ese folio para este proveedor.");
+                return;
+            }
+
+            const { error } = await supabase
+                .from('facturas')
+                .insert([{
+                    empresa_id: selectedEmpresaId,
+                    tipo: 'compra',
+                    tercero_id: selectedProv.id,
+                    tercero_nombre: selectedProv.razon_social,
+                    rut: selectedProv.rut,
+                    fecha_emision: newInvoiceData.fecha_emision,
+                    fecha_vencimiento: newInvoiceData.fecha_vencimiento,
+                    numero_documento: newInvoiceData.numero_documento.trim(),
+                    monto: Number(newInvoiceData.monto),
+                    estado: 'pendiente'
+                }]);
+
+            if (error) throw error;
+
+            setIsNewInvoiceOpen(false);
+            setNewInvoiceData({
+                tercero_id: "",
+                fecha_emision: new Date().toISOString().split("T")[0],
+                fecha_vencimiento: "",
+                numero_documento: "",
+                monto: ""
+            });
+            await fetchProveedores();
+            alert("Factura de compra registrada correctamente.");
+        } catch (error: any) {
+            console.error("Error creando factura de compra:", error);
+            alert(`Error al guardar factura: ${error.message}`);
+        } finally {
+            setIsSavingInvoice(false);
         }
     };
 
@@ -204,6 +277,94 @@ export default function Proveedores() {
                     <p className="text-muted-foreground">Administra tus compras y cuentas por pagar.</p>
                 </div>
                 <div className="flex gap-2 w-full md:w-auto">
+                    <Dialog open={isNewInvoiceOpen} onOpenChange={setIsNewInvoiceOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="outline" className="flex-1 md:flex-none">
+                                Ingresar Factura Compra
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[520px]">
+                            <DialogHeader>
+                                <DialogTitle>Nueva Factura de Compra</DialogTitle>
+                            </DialogHeader>
+                            <div className="grid gap-4 py-4">
+                                <div className="grid gap-2">
+                                    <Label>Proveedor *</Label>
+                                    <div className="flex gap-2">
+                                        <Select
+                                            value={newInvoiceData.tercero_id}
+                                            onValueChange={(value) => setNewInvoiceData({ ...newInvoiceData, tercero_id: value })}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Selecciona proveedor" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {proveedores.map((p) => (
+                                                    <SelectItem key={p.id} value={p.id}>
+                                                        {p.razon_social}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => {
+                                                setIsNewInvoiceOpen(false);
+                                                setIsNewProvOpen(true);
+                                            }}
+                                        >
+                                            Nuevo Proveedor
+                                        </Button>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid gap-2">
+                                        <Label>Fecha Documento *</Label>
+                                        <Input
+                                            type="date"
+                                            value={newInvoiceData.fecha_emision}
+                                            onChange={(e) => setNewInvoiceData({ ...newInvoiceData, fecha_emision: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label>Fecha Vencimiento *</Label>
+                                        <Input
+                                            type="date"
+                                            value={newInvoiceData.fecha_vencimiento}
+                                            onChange={(e) => setNewInvoiceData({ ...newInvoiceData, fecha_vencimiento: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid gap-2">
+                                        <Label>Folio *</Label>
+                                        <Input
+                                            value={newInvoiceData.numero_documento}
+                                            onChange={(e) => setNewInvoiceData({ ...newInvoiceData, numero_documento: e.target.value })}
+                                            placeholder="Ej: 98765"
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label>Total con IVA *</Label>
+                                        <Input
+                                            type="number"
+                                            min="0"
+                                            step="1"
+                                            value={newInvoiceData.monto}
+                                            onChange={(e) => setNewInvoiceData({ ...newInvoiceData, monto: e.target.value })}
+                                            placeholder="0"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                            <Button onClick={handleCreateCompraInvoice} disabled={isSavingInvoice} className="w-full">
+                                {isSavingInvoice ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                Guardar Factura Compra
+                            </Button>
+                        </DialogContent>
+                    </Dialog>
+
                     <Dialog open={isNewProvOpen} onOpenChange={setIsNewProvOpen}>
                         <DialogTrigger asChild>
                             <Button className="flex-1 md:flex-none">
