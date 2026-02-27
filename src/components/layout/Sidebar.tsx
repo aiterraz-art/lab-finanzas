@@ -18,6 +18,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
+const OWNER_ADMIN_EMAIL = "aterraza@3dental.cl";
 
 const navigation = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -41,7 +42,10 @@ export function Sidebar() {
     useEffect(() => {
         if (user) {
             supabase.from('profiles').select('role').eq('id', user.id).single()
-                .then(({ data }) => setIsAdmin(data?.role === 'admin'));
+                .then(({ data }) => {
+                    const isOwnerAdmin = user.email?.toLowerCase() === OWNER_ADMIN_EMAIL;
+                    setIsAdmin(data?.role === 'admin' && isOwnerAdmin);
+                });
         }
     }, [user]);
 

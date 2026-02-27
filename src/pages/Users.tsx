@@ -35,6 +35,7 @@ import { es } from 'date-fns/locale';
 import { createUserInternal } from '@/lib/internalAutomation';
 import { useCompany } from '@/contexts/CompanyContext';
 import { useAuth } from '@/contexts/AuthContext';
+const OWNER_ADMIN_EMAIL = "aterraza@3dental.cl";
 
 const ASSIGNABLE_COMPANY_ROLES = ['user', 'viewer'] as const;
 type CompanyRole = typeof ASSIGNABLE_COMPANY_ROLES[number];
@@ -120,6 +121,7 @@ export default function Users() {
     const [isUploadingLogo, setIsUploadingLogo] = useState(false);
     const [companyForm, setCompanyForm] = useState<CompanyForm>(EMPTY_COMPANY_FORM);
     const logoInputRef = useRef<HTMLInputElement>(null);
+    const isOwnerAdmin = user?.email?.toLowerCase() === OWNER_ADMIN_EMAIL;
 
     useEffect(() => {
         if (selectedEmpresaId) {
@@ -402,10 +404,10 @@ export default function Users() {
 
     const usersWithAccess = useMemo(() => users.filter((u) => memberships[u.id]), [users, memberships]);
 
-    if (!isGlobalAdmin) {
+    if (!isGlobalAdmin || !isOwnerAdmin) {
         return (
             <div className="rounded-lg border bg-card p-6 text-muted-foreground">
-                Solo un administrador global puede acceder a este módulo.
+                Solo el administrador principal puede acceder a este módulo.
             </div>
         );
     }
@@ -718,6 +720,7 @@ export default function Users() {
                                 ) : (
                                     users.map((profile) => {
                                         const companyRole = memberships[profile.id];
+                                        const isGlobalAdminRow = profile.role === 'admin';
                                         return (
                                             <TableRow key={profile.id}>
                                                 <TableCell className="font-medium">
@@ -741,31 +744,35 @@ export default function Users() {
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="flex items-center gap-2">
-                                                        <Select
-                                                            value={companyRole || undefined}
-                                                            onValueChange={(value) => handleSetCompanyRole(profile.id, value as CompanyRole)}
-                                                        >
-                                                            <SelectTrigger className="w-40">
-                                                                <SelectValue placeholder="Sin acceso" />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                {ASSIGNABLE_COMPANY_ROLES.map((role) => (
-                                                                    <SelectItem key={role} value={role}>
-                                                                        {role}
-                                                                    </SelectItem>
-                                                                ))}
-                                                            </SelectContent>
-                                                        </Select>
-                                                        {!companyRole && (
-                                                            <Badge variant="outline">Sin acceso</Badge>
-                                                        )}
-                                                    </div>
+                                                    {isGlobalAdminRow ? (
+                                                        <Badge>Admin total</Badge>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2">
+                                                            <Select
+                                                                value={companyRole || undefined}
+                                                                onValueChange={(value) => handleSetCompanyRole(profile.id, value as CompanyRole)}
+                                                            >
+                                                                <SelectTrigger className="w-40">
+                                                                    <SelectValue placeholder="Sin acceso" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {ASSIGNABLE_COMPANY_ROLES.map((role) => (
+                                                                        <SelectItem key={role} value={role}>
+                                                                            {role}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                            {!companyRole && (
+                                                                <Badge variant="outline">Sin acceso</Badge>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell>{formatProfileCreatedAt(profile.created_at)}</TableCell>
                                                 <TableCell className="text-right">
                                                     <div className="flex items-center justify-end gap-2">
-                                                        {companyRole && (
+                                                        {companyRole && !isGlobalAdminRow && (
                                                             <Button
                                                                 variant="ghost"
                                                                 size="icon"
@@ -776,15 +783,17 @@ export default function Users() {
                                                                 <ShieldPlus className="h-4 w-4" />
                                                             </Button>
                                                         )}
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-8 w-8 text-muted-foreground hover:text-red-600"
-                                                            onClick={() => handleDeleteUser(profile.id)}
-                                                            title="Eliminar usuario"
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
+                                                        {!isGlobalAdminRow && (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-8 w-8 text-muted-foreground hover:text-red-600"
+                                                                onClick={() => handleDeleteUser(profile.id)}
+                                                                title="Eliminar usuario"
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        )}
                                                     </div>
                                                 </TableCell>
                                             </TableRow>

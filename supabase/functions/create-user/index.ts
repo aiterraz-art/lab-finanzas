@@ -4,6 +4,7 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+const OWNER_ADMIN_EMAIL = "aterraza@3dental.cl";
 
 type CreateUserPayload = {
   email: string;
@@ -54,7 +55,8 @@ Deno.serve(async (req) => {
       .eq("id", authData.user.id)
       .single();
 
-    if (roleError || profile?.role !== "admin") {
+    const authEmail = authData.user.email?.toLowerCase() ?? "";
+    if (roleError || profile?.role !== "admin" || authEmail !== OWNER_ADMIN_EMAIL) {
       return new Response(JSON.stringify({ error: "Only admins can create users." }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
